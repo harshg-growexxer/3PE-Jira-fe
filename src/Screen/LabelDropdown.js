@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-const DropdownWithUsers = () => {
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+const DropdownWithLabels = () => {
+  const [labels, setLabels] = useState([]);
+  const [filteredLabels, setFilteredLabels] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedLabel, setSelectedLabel] = useState(null);
+  const [issueDetails, setIssueDetails] = useState(null);
   const dropdownRef = useRef(null);
 
-  const fetchUsers = async () => {
+  const fetchLabels = async () => {
     setIsLoading(true);
     const username = 'pm@growexx.com';
     const apiToken = 'sTLrjnoEsOTH87mHOlJX7FF9';
@@ -24,10 +25,41 @@ const DropdownWithUsers = () => {
         },
       });
 
-      setUsers(response.data);
-      setFilteredUsers(response.data.slice(0, 10));
+      setLabels(response.data.values);
+      setFilteredLabels(response.data.values.slice(0, 10));
     } catch (error) {
-      console.error('Error fetching users:', error.response || error.message);
+      console.error('Error fetching labels:', error.response || error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchIssueDetails = async (label) => {
+    setIsLoading(true);
+    const username = 'pm@growexx.com';
+    const apiToken = 'sTLrjnoEsOTH87mHOlJX7FF9';
+    const authString = btoa(`${username}:${apiToken}`);
+
+    try {
+      const response = await axios.get(
+        `/rest/api/3/search?jql=labels=${label}`,
+        {
+          headers: {
+            Authorization: `Basic ${authString}`,
+            Accept: 'application/json',
+          },
+        }
+      );
+
+      setIssueDetails({
+        total: response.data.total,
+        issues: response.data.issues.map((issue) => issue.expand),
+      });
+    } catch (error) {
+      console.error(
+        'Error fetching issue details:',
+        error.response || error.message
+      );
     } finally {
       setIsLoading(false);
     }
@@ -46,25 +78,24 @@ const DropdownWithUsers = () => {
 
   const handleDropdownClick = () => {
     setDropdownOpen(!dropdownOpen);
-    if (!dropdownOpen && users.length === 0) {
-      fetchUsers();
+    if (!dropdownOpen && labels.length === 0) {
+      fetchLabels();
     }
   };
 
   const handleSearch = (e) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    const filtered = users.filter(
-      (user) =>
-        user.displayName.toLowerCase().includes(term) ||
-        user.emailAddress.toLowerCase().includes(term)
+    const filtered = labels.filter((label) =>
+      label.toLowerCase().includes(term)
     );
-    setFilteredUsers(filtered.slice(0, 10));
+    setFilteredLabels(filtered.slice(0, 10));
   };
 
-  const handleUserSelect = (user) => {
-    setSelectedUser(user);
+  const handleLabelSelect = (label) => {
+    setSelectedLabel(label);
     setDropdownOpen(false);
+    fetchIssueDetails(label);
   };
 
   return (
@@ -73,7 +104,7 @@ const DropdownWithUsers = () => {
         onClick={handleDropdownClick}
         style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
       >
-        {selectedUser ? selectedUser.displayName : 'Select User'}
+        {selectedLabel ? selectedLabel : 'Select Label'}
       </button>
 
       {dropdownOpen && (
@@ -86,7 +117,7 @@ const DropdownWithUsers = () => {
         >
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search labels..."
             value={searchTerm}
             onChange={handleSearch}
             style={{ width: '100%', padding: '5px', marginBottom: '10px' }}
@@ -104,17 +135,17 @@ const DropdownWithUsers = () => {
                 listStyle: 'none',
               }}
             >
-              {filteredUsers.map((user) => (
+              {filteredLabels.map((label, index) => (
                 <li
-                  key={user.accountId}
-                  onClick={() => handleUserSelect(user)}
+                  key={index}
+                  onClick={() => handleLabelSelect(label)}
                   style={{
                     padding: '5px',
                     cursor: 'pointer',
                     hover: { backgroundColor: '#f0f0f0' },
                   }}
                 >
-                  {user.displayName} ({user.emailAddress})
+                  {label}
                 </li>
               ))}
             </ul>
@@ -122,13 +153,22 @@ const DropdownWithUsers = () => {
         </div>
       )}
 
-      {selectedUser && (
+      {selectedLabel && issueDetails && (
         <div style={{ marginTop: '10px' }}>
-          User selected: {selectedUser.displayName}
+          <p>Label selected: {selectedLabel}</p>
+          <p>Total issues: {issueDetails.total}</p>
+          <p>Issue expands:</p>
+          <ul>
+            {issueDetails.issues.map((expand, id, index) => (
+              <li key={index}>
+                {expand} : {id}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
   );
 };
 
-export default DropdownWithUsers;
+export default DropdownWithLabels;
