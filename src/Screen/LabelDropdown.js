@@ -6,6 +6,7 @@ const DropdownWithLabels = () => {
   const [filteredLabels, setFilteredLabels] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingIssues, setIsFetchingIssues] = useState(false); // New loading state for issue fetching
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLabel, setSelectedLabel] = useState(null);
   const [issueDetails, setIssueDetails] = useState(null);
@@ -35,7 +36,7 @@ const DropdownWithLabels = () => {
   };
 
   const fetchIssueDetails = async (label) => {
-    setIsLoading(true);
+    setIsFetchingIssues(true);
     const username = 'pm@growexx.com';
     const apiToken = 'sTLrjnoEsOTH87mHOlJX7FF9';
     const authString = btoa(`${username}:${apiToken}`);
@@ -61,7 +62,7 @@ const DropdownWithLabels = () => {
         error.response || error.message
       );
     } finally {
-      setIsLoading(false);
+      setIsFetchingIssues(false);
     }
   };
 
@@ -106,7 +107,6 @@ const DropdownWithLabels = () => {
       >
         {selectedLabel ? selectedLabel : 'Select Label'}
       </button>
-
       {dropdownOpen && (
         <div
           style={{
@@ -142,8 +142,14 @@ const DropdownWithLabels = () => {
                   style={{
                     padding: '5px',
                     cursor: 'pointer',
-                    hover: { backgroundColor: '#f0f0f0' },
+                    backgroundColor: 'white',
                   }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor = '#f0f0f0')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor = 'white')
+                  }
                 >
                   {label}
                 </li>
@@ -152,15 +158,15 @@ const DropdownWithLabels = () => {
           )}
         </div>
       )}
-
+      {selectedLabel && isFetchingIssues && <div>Loading user details...</div>}{' '}
       {selectedLabel && issueDetails && (
         <div style={{ marginTop: '10px' }}>
           <p>Label selected: {selectedLabel}</p>
           <p>Total issues: {issueDetails.total}</p>
           <p>Issue expands:</p>
           <ul>
-            {issueDetails.issues.map((expand, id, index) => (
-              <li key={index}>
+            {issueDetails.issues.map((expand, id) => (
+              <li key={id}>
                 {expand} : {id}
               </li>
             ))}
