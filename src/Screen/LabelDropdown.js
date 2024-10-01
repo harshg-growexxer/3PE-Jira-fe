@@ -10,7 +10,7 @@ const DropdownWithLabels = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLabel, setSelectedLabel] = useState(null);
   const [issueDetails, setIssueDetails] = useState(null);
-  const [issueHierarchy, setIssueHierarchy] = useState([]);
+  const [issueHierarchies, setIssueHierarchies] = useState([]); // Changed to array of hierarchies
   const dropdownRef = useRef(null);
 
   const username = 'pm@growexx.com';
@@ -41,6 +41,7 @@ const DropdownWithLabels = () => {
 
   const fetchIssueDetails = async (label) => {
     setIsFetchingIssues(true);
+    setIssueHierarchies([]); // Reset hierarchies
     try {
       const response = await axios.get(
         `/rest/api/3/search?jql=labels=${label}`,
@@ -55,11 +56,14 @@ const DropdownWithLabels = () => {
         total: response.data.total,
         issues: response.data.issues,
       });
-      if (response.data.issues.length > 0) {
-        await traverseIssueHierarchy(
-          removeBaseUrl(response.data.issues[0].self)
-        );
-      }
+
+      // Process all issues
+      const hierarchyPromises = response.data.issues.map((issue) =>
+        traverseIssueHierarchy(removeBaseUrl(issue.self))
+      );
+
+      const allHierarchies = await Promise.all(hierarchyPromises);
+      setIssueHierarchies(allHierarchies);
     } catch (error) {
       console.error(
         'Error fetching issue details:',
@@ -94,28 +98,24 @@ const DropdownWithLabels = () => {
 
     for (let i = 0; i < 5; i++) {
       const issueData = await fetchIssueData(currentUrl);
-      console.log(
-        'Traverse ' + i + ' issues Data: ' + JSON.stringify(issueData)
-      );
       if (!issueData) break;
 
       const issueType = issueData.fields.issuetype.name;
       const issueKey = issueData.key;
-      hierarchy.push({ key: issueKey, type: issueType });
+      const summary = issueData.fields.summary;
+      hierarchy.push({ key: issueKey, type: issueType, summary });
 
-      // Check for parent issue and traverse upwards
       if (issueData.fields.parent) {
         currentUrl = removeBaseUrl(issueData.fields.parent.self);
       } else if (issueData.fields.project) {
-        // Handle case when we reach the project level
-        currentUrl = removeBaseUrl(issueData.fields.project.self);
-
-        // Fetch project data
-        const projectData = await fetchIssueData(currentUrl);
+        const projectData = await fetchIssueData(
+          removeBaseUrl(issueData.fields.project.self)
+        );
         if (projectData && projectData.name && projectData.id) {
           hierarchy.push({
             key: `Project Level: ${projectData.name}`,
             type: `ID: ${projectData.id}`,
+            summary: 'Project',
           });
         }
         break;
@@ -124,7 +124,7 @@ const DropdownWithLabels = () => {
       }
     }
 
-    setIssueHierarchy(hierarchy);
+    return hierarchy;
   };
 
   useEffect(() => {
@@ -223,14 +223,20 @@ const DropdownWithLabels = () => {
         <div style={{ marginTop: '10px' }}>
           <p>Label selected: {selectedLabel}</p>
           <p>Total issues: {issueDetails.total}</p>
-          <p>Issue Hierarchy:</p>
-          <ul>
-            {issueHierarchy.map((issue, index) => (
-              <li key={index}>
-                Level {index + 1}: {issue.key} - {issue.type}
-              </li>
-            ))}
-          </ul>
+          {issueHierarchies.map((hierarchy, index) => (
+            <div key={index}>
+              <p>Issue {index + 1} Hierarchy:</p>
+              <ul>
+                {hierarchy.map((issue, level) => (
+                  <li key={level}>
+                    Level {level + 1}: {issue.key} - {issue.type}
+                    <br />
+                    Summary: {issue.summary}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       )}
     </div>
