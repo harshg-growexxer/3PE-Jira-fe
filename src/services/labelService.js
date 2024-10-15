@@ -1,23 +1,23 @@
 import axios from 'axios';
 
 const AUTH = {
-    username: 'pm@growexx.com',
-    password: 'sTLrjnoEsOTH87mHOlJX7FF9'
+    username: process.env.REACT_APP_USERNAME,
+    password: process.env.REACT_APP_PASSWORD
 };
 
 export const fetchLabels = async () => {
     try {
         const response = await axios.get('/rest/api/3/label', {
-          headers: {
-            Authorization: `Basic ${btoa(`${AUTH.username}:${AUTH.password}`)}`,
-            Accept: 'application/json',
-          },
+            headers: {
+                Authorization: `Basic ${btoa(`${AUTH.username}:${AUTH.password}`)}`,
+                Accept: 'application/json',
+            },
         });
         return response.data.values;
-      } catch (error) {
+    } catch (error) {
         console.error('Error fetching labels:', error.response || error.message);
         throw error;
-      }
+    }
 };
 
 export const fetchIssues = async (label) => {

@@ -29,15 +29,19 @@ const LabelIssues = ({ selectedLabel }) => {
     }, [selectedLabel]);
 
     const categorizeIssues = (fetchedIssues) => {
-        const categorized = { epics: [], bugs: [], stories: [], tasks: [], subtasks: [] };
+        const categorized = { epics: [], bugs: {}, stories: [], tasks: [], subtasks: [] };
         fetchedIssues.forEach(issue => {
             const issueType = issue.fields.issuetype.name.toLowerCase();
+            const status = issue.fields.status.name;
             switch (issueType) {
                 case 'epic':
                     categorized.epics.push(issue);
                     break;
                 case 'bug':
-                    categorized.bugs.push(issue);
+                    if (!categorized.bugs[status]) {
+                        categorized.bugs[status] = [];
+                    }
+                    categorized.bugs[status].push(issue);
                     break;
                 case 'story':
                     categorized.stories.push(issue);
@@ -55,6 +59,22 @@ const LabelIssues = ({ selectedLabel }) => {
         return categorized;
     };
 
+    const computeCompletionRatio = (bugs) => {
+        const totalBugs = Object.keys(bugs).reduce((total, status) => total + bugs[status].length, 0);
+        const doneBugs = bugs['Done'] ? bugs['Done'].length : 0; // Assuming 'Done' is the status for completed bugs
+        return totalBugs > 0 ? (100 * doneBugs) / totalBugs : 0;
+    };
+
+    const getCompletionRatioColor = (totalBugs) => {
+        if (totalBugs <= 5) {
+            return 'green';
+        } else if (totalBugs > 5 && totalBugs <= 10) {
+            return 'orange';
+        } else {
+            return 'red';
+        }
+    };
+
     if (loading) return <p>Loading issues...</p>;
     if (error) return <p className="error">{error}</p>;
 
@@ -68,10 +88,27 @@ const LabelIssues = ({ selectedLabel }) => {
                     <h3>Total Issues: {totalIssues}</h3>
                     <div className="issue-counts">
                         <p>Epics: {issues.epics.length}</p>
-                        <p>Bugs: {issues.bugs.length}</p>
+                        <p>Bugs: {Object.keys(issues.bugs).reduce((total, status) => total + issues.bugs[status].length, 0)}</p>
                         <p>Stories: {issues.stories.length}</p>
                         <p>Tasks: {issues.tasks.length}</p>
                         <p>Subtasks: {issues.subtasks.length}</p>
+                    </div>
+                    <div className="bug-details">
+                        <h4>Bug Details by Status:</h4>
+                        {Object.entries(issues.bugs).map(([status, bugs]) => (
+                            <div key={status}>
+                                <h5>Status: {status}</h5>
+                                {bugs.map((bug, index) => (
+                                    <div key={index}>
+                                        <p>ID: {bug.id}</p>
+                                        <p>Summary: {bug.fields.summary}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                        <p style={{ color: getCompletionRatioColor(Object.keys(issues.bugs).reduce((total, status) => total + issues.bugs[status].length, 0)) }}>
+                            Bug Completion Ratio: {computeCompletionRatio(issues.bugs).toFixed(2)}%
+                        </p>
                     </div>
                 </>
             )}
